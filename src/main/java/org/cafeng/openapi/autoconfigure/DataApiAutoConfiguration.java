@@ -4,6 +4,7 @@ import org.cafeng.openapi.capability.CapabilityEndpoint;
 import org.cafeng.openapi.datasource.DataSourceRegistry;
 import org.cafeng.openapi.engine.*;
 import org.cafeng.openapi.error.DataApiExceptionHandler;
+import org.cafeng.openapi.r2dbc.ConnectionFactoryRegistry;
 import org.cafeng.openapi.openapi.OpenApiGenerator;
 import org.cafeng.openapi.parser.YamlDiscovery;
 import org.cafeng.openapi.parser.YamlLint;
@@ -26,6 +27,7 @@ import org.cafeng.openapi.security.ApiKeyAuthenticationProvider;
 import org.cafeng.openapi.security.RateLimiter;
 import io.micrometer.core.instrument.MeterRegistry;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.r2dbc.spi.ConnectionFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -89,6 +91,22 @@ public class DataApiAutoConfiguration {
     @Bean
     public HttpQueryEngine httpQueryEngine() {
         return new HttpQueryEngine();
+    }
+
+    @Bean
+    public ConnectionFactoryRegistry connectionFactoryRegistry(ApplicationContext applicationContext) {
+        ConnectionFactoryRegistry registry = new ConnectionFactoryRegistry();
+        Map<String, ConnectionFactory> beans = applicationContext.getBeansOfType(ConnectionFactory.class);
+        if (beans.isEmpty()) {
+            log.info("No R2DBC ConnectionFactory beans found — R2DBC support disabled");
+        }
+        beans.forEach(registry::register);
+        return registry;
+    }
+
+    @Bean
+    public R2dbcQueryEngine r2dbcQueryEngine(ConnectionFactoryRegistry connectionFactoryRegistry) {
+        return new R2dbcQueryEngine(connectionFactoryRegistry);
     }
 
     @Bean
