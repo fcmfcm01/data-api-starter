@@ -1,9 +1,12 @@
 package org.cafeng.openapi.openapi;
 
 import org.cafeng.openapi.definition.ApiDefinition;
+import org.cafeng.openapi.definition.ApiParameter;
+import org.cafeng.openapi.definition.ApiResponse;
 import org.cafeng.openapi.definition.ResponseField;
 import org.cafeng.openapi.registry.ApiDefinitionRegistry;
 import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.PathItem;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.media.Content;
 import io.swagger.v3.oas.models.media.MediaType;
@@ -48,70 +51,72 @@ public class OpenApiGenerator {
                 .description("Auto-generated API documentation"));
 
         io.swagger.v3.oas.models.Paths paths = new io.swagger.v3.oas.models.Paths();
-        
         for (ApiDefinition api : apiRegistry.getAll()) {
-            io.swagger.v3.oas.models.PathItem pathItem = new io.swagger.v3.oas.models.PathItem();
-            
-            io.swagger.v3.oas.models.Operation operation = new io.swagger.v3.oas.models.Operation();
-            operation.setSummary(api.name());
-            operation.setDescription(api.id());
-
-            List<Parameter> parameters = new ArrayList<>();
-            if (api.parameters() != null) {
-                for (var param : api.parameters()) {
-                    Parameter parameter = new Parameter();
-                    parameter.setName(param.name());
-                    parameter.setIn(param.in());
-                    parameter.setRequired(param.required());
-                    parameter.setDescription(param.description());
-                    
-                    Schema<?> schema = new Schema<>();
-                    schema.setType(param.type());
-                    parameter.setSchema(schema);
-                    
-                    parameters.add(parameter);
-                }
-            }
-            operation.setParameters(parameters);
-
-            ApiResponses responses = new ApiResponses();
-            io.swagger.v3.oas.models.responses.ApiResponse response = new io.swagger.v3.oas.models.responses.ApiResponse();
-            response.setDescription(api.response() != null ? api.response().type() : "Success");
-            
-            Content content = new Content();
-            MediaType mediaType = new MediaType();
-            Schema<?> responseSchema = new Schema<>();
-            responseSchema.setType("object");
-
-            if (api.response() != null && api.response().fields() != null) {
-                Map<String, Schema> properties = new LinkedHashMap<>();
-                for (var field : api.response().fields()) {
-                    Schema fieldSchema = new Schema<>();
-                    fieldSchema.setType("string");
-                    fieldSchema.setDescription(buildFieldDescription(field));
-                    properties.put(field.name(), fieldSchema);
-                }
-                responseSchema.setProperties(properties);
-            }
-
-            mediaType.setSchema(responseSchema);
-            content.addMediaType("application/json", mediaType);
-            response.setContent(content);
-            responses.addApiResponse("200", response);
-            operation.setResponses(responses);
-
-            switch (api.method().toUpperCase()) {
-                case "GET" -> pathItem.setGet(operation);
-                case "POST" -> pathItem.setPost(operation);
-                case "PUT" -> pathItem.setPut(operation);
-                case "DELETE" -> pathItem.setDelete(operation);
-            }
-
-            paths.addPathItem(api.path(), pathItem);
+            paths.addPathItem(api.path(), buildPathItem(api));
         }
-
         openAPI.setPaths(paths);
         return openAPI;
+    }
+
+    private PathItem buildPathItem(ApiDefinition api) {
+        io.swagger.v3.oas.models.PathItem pathItem = new io.swagger.v3.oas.models.PathItem();
+        io.swagger.v3.oas.models.Operation operation = new io.swagger.v3.oas.models.Operation();
+        operation.setSummary(api.name());
+        operation.setDescription(api.id());
+        operation.setParameters(buildOperationParameters(api.parameters()));
+
+        ApiResponses responses = new ApiResponses();
+        io.swagger.v3.oas.models.responses.ApiResponse response = new io.swagger.v3.oas.models.responses.ApiResponse();
+        response.setDescription(api.response() != null ? api.response().type() : "Success");
+
+        Content content = new Content();
+        MediaType mediaType = new MediaType();
+        mediaType.setSchema(buildResponseSchema(api.response()));
+        content.addMediaType("application/json", mediaType);
+        response.setContent(content);
+        responses.addApiResponse("200", response);
+        operation.setResponses(responses);
+
+        switch (api.method().toUpperCase()) {
+            case "GET" -> pathItem.setGet(operation);
+            case "POST" -> pathItem.setPost(operation);
+            case "PUT" -> pathItem.setPut(operation);
+            case "DELETE" -> pathItem.setDelete(operation);
+        }
+        return pathItem;
+    }
+
+    private List<Parameter> buildOperationParameters(List<ApiParameter> params) {
+        List<Parameter> parameters = new ArrayList<>();
+        if (params == null) return parameters;
+        for (var param : params) {
+            Parameter parameter = new Parameter();
+            parameter.setName(param.name());
+            parameter.setIn(param.in());
+            parameter.setRequired(param.required());
+            parameter.setDescription(param.description());
+            Schema<?> schema = new Schema<>();
+            schema.setType(param.type());
+            parameter.setSchema(schema);
+            parameters.add(parameter);
+        }
+        return parameters;
+    }
+
+    private Schema<?> buildResponseSchema(ApiResponse apiResponse) {
+        Schema<?> responseSchema = new Schema<>();
+        responseSchema.setType("object");
+        if (apiResponse == null || apiResponse.fields() == null) return responseSchema;
+
+        Map<String, Schema> properties = new LinkedHashMap<>();
+        for (var field : apiResponse.fields()) {
+            Schema fieldSchema = new Schema<>();
+            fieldSchema.setType("string");
+            fieldSchema.setDescription(buildFieldDescription(field));
+            properties.put(field.name(), fieldSchema);
+        }
+        responseSchema.setProperties(properties);
+        return responseSchema;
     }
 
     public Collection<ApiDefinition> getRegisteredApis() {

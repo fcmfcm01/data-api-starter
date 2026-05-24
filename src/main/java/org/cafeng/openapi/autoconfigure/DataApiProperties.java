@@ -16,7 +16,7 @@ public class DataApiProperties {
     private Integer globalTimeout = 5000;
     private Boolean capabilitiesEnabled = true;
     private String scopeMapping = "";
-    private String authType = "none";
+    private AuthType authType = AuthType.NONE;
     private boolean strictScopes = false;
     private String jwtSecret = "";
     private String apiKeys = "";
@@ -55,11 +55,11 @@ public class DataApiProperties {
         this.scopeMapping = scopeMapping;
     }
 
-    public String getAuthType() {
+    public AuthType getAuthType() {
         return authType;
     }
 
-    public void setAuthType(String authType) {
+    public void setAuthType(AuthType authType) {
         this.authType = authType;
     }
 

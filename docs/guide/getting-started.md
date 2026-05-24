@@ -697,6 +697,28 @@ data-api:
   scope-mapping: "internal:basic+detail+financial,admin:basic+detail+financial+ddl"
 ```
 
+### 推荐连接池配置（HikariCP）
+
+HikariCP 默认不启用 PreparedStatement 缓存，建议在 `application.yml` 中显式开启以提升重复查询性能：
+
+```yaml
+spring:
+  datasource:
+    hikari:
+      data-source-properties:
+        cachePrepStmts: true
+        prepStmtCacheSize: 250
+        prepStmtCacheSqlLimit: 2048
+```
+
+| 属性 | 推荐值 | 说明 |
+|------|--------|------|
+| `cachePrepStmts` | `true` | 启用 PreparedStatement 缓存 |
+| `prepStmtCacheSize` | `250` | 每个连接缓存的 PreparedStatement 数量 |
+| `prepStmtCacheSqlLimit` | `2048` | 缓存的 SQL 最大长度（字符数） |
+
+> **注意**：MySQL 和 PostgreSQL 驱动均支持上述属性。对于 H2 内存数据库（开发/测试环境），启用后同样有效但性能收益较小。
+
 ### Spring 数据源配置
 
 使用 Spring Boot 标准配置即可。单数据源默认 Bean 名称为 `dataSource`，YAML 中 `source.datasource` 写 `"dataSource"`。多数据源参见 [第 8 节 多数据源](#8-多数据源)。

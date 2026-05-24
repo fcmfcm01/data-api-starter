@@ -51,4 +51,26 @@ class RateLimiterTest {
             assertTrue(limiter.tryConsume("api-1", "caller-1", 0));
         }
     }
+
+    @Test
+    void shouldReturnZeroRetryWhenTokensAvailable() {
+        RateLimiter limiter = new RateLimiter(true);
+        limiter.tryConsume("api-1", "caller-1", 5);
+        assertEquals(0L, limiter.getRetryAfterSeconds("api-1", "caller-1"));
+    }
+
+    @Test
+    void shouldComputeRetryAfterWhenExhausted() {
+        RateLimiter limiter = new RateLimiter(true);
+        limiter.tryConsume("api-1", "caller-1", 1);
+        assertFalse(limiter.tryConsume("api-1", "caller-1", 1));
+        long retryAfter = limiter.getRetryAfterSeconds("api-1", "caller-1");
+        assertTrue(retryAfter >= 1L, "retryAfter should be at least 1 second, got " + retryAfter);
+    }
+
+    @Test
+    void shouldReturnDefaultRetryForUnknownKey() {
+        RateLimiter limiter = new RateLimiter(true);
+        assertEquals(1L, limiter.getRetryAfterSeconds("unknown", "unknown"));
+    }
 }

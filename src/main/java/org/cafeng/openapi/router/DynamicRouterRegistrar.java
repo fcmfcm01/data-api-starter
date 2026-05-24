@@ -75,11 +75,10 @@ public class DynamicRouterRegistrar {
         private Map<String, Object> parseBody(HttpServletRequest req) {
             Map<String, Object> p = new HashMap<>();
             if (!"POST".equalsIgnoreCase(req.getMethod()) && !"PUT".equalsIgnoreCase(req.getMethod())) return p;
-            try { if (req.getContentLength() > MAX_BODY_SIZE) throw new ValidationException("Request body too large (max 1MB)");
-                String ct = req.getContentType();
+            try { String ct = req.getContentType();
                 if (ct != null && ct.contains("application/json")) { byte[] b = req.getInputStream().readAllBytes();
                     if (b.length > MAX_BODY_SIZE) throw new ValidationException("Request body too large (max 1MB)");
-                    if (b.length > 0) objectMapper.readValue(new String(b), Map.class).forEach((k, v) -> p.put(String.valueOf(k), v)); }
+                    if (b.length > 0) objectMapper.readValue(b, Map.class).forEach((k, v) -> p.put(String.valueOf(k), v)); }
             } catch (Exception e) { log.debug("Body parse fail for {}: {}", apiDefinition.id(), e.getMessage()); }
             return p;
         }

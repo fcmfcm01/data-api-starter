@@ -1,7 +1,6 @@
 package org.cafeng.openapi.engine;
 
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 
 /**
@@ -24,8 +23,6 @@ public class SqlInjectionGuard {
             Pattern.compile("0x[0-9a-fA-F]{6,}")
     );
 
-    private final Set<String> safeParamsCache = ConcurrentHashMap.newKeySet();
-
     /**
      * Validates all parameter values against SQL injection patterns.
      * @throws IllegalArgumentException if a potentially dangerous value is detected
@@ -42,15 +39,11 @@ public class SqlInjectionGuard {
     }
 
     private void checkValue(String paramName, String value) {
-        if (safeParamsCache.contains(value)) {
-            return;
-        }
         for (Pattern pattern : DANGEROUS_PATTERNS) {
             if (pattern.matcher(value).find()) {
                 throw new IllegalArgumentException(
                     "Potential SQL injection detected in parameter '" + paramName + "': value contains forbidden pattern");
             }
         }
-        safeParamsCache.add(value);
     }
 }

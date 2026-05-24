@@ -17,4 +17,11 @@ public interface QueryEngine {
     default long executeCount(ApiDefinition api, String sql, Map<String, Object> params) throws Exception {
         throw new UnsupportedOperationException("Count not supported by " + getType());
     }
+
+    default PaginatedResult executePaginated(ApiDefinition api, String dataSql, String countSql,
+            Map<String, Object> params) throws Exception {
+        QueryResult data = execute(api, dataSql, params);
+        long total = executeCount(api, countSql, params);
+        return new PaginatedResult(data.data(), total);
+    }
 }

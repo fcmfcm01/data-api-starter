@@ -4,6 +4,7 @@ import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import jakarta.servlet.http.HttpServletRequest;
+import org.cafeng.openapi.scope.ScopeUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,15 +47,6 @@ public class JwtAuthenticationProvider implements AuthenticationProvider {
     }
 
     private Set<String> parseScopes(String scopeClaim) {
-        if (scopeClaim == null || scopeClaim.isBlank()) {
-            return Set.of();
-        }
-        Set<String> scopes = new LinkedHashSet<>();
-        for (String s : scopeClaim.split("\\s+")) {
-            if (!s.isEmpty()) {
-                scopes.add(s);
-            }
-        }
-        return Collections.unmodifiableSet(scopes);
+        return new LinkedHashSet<>(ScopeUtils.parseScopeString(scopeClaim));
     }
 }

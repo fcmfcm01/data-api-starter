@@ -2,7 +2,6 @@ package org.cafeng.openapi.engine;
 
 import org.cafeng.openapi.scope.ScopeResolver;
 import java.util.Set;
-import java.util.Set;
 
 /**
  * Guards DDL operations by requiring callers to have the 'ddl' scope.

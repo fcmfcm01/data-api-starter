@@ -6,6 +6,8 @@ import org.cafeng.openapi.sla.SlaMonitor;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.*;
+import org.cafeng.openapi.definition.ResponseType;
+
 import java.util.*;
 
 /**
@@ -56,8 +58,8 @@ public class JdbcQueryHandler {
             QueryEngine engine, String sql, Map<String, Object> params) throws Exception {
         List<Map<String, Object>> results;
         String type = ctx.apiDefinition().response().type();
-        if ("page".equals(type)) return handlePaginated(id, ctx, req, engine, sql, params);
-        else if ("single".equals(type)) {
+        if (ResponseType.PAGE.yamlValue().equals(type)) return handlePaginated(id, ctx, req, engine, sql, params);
+        else if (ResponseType.SINGLE.yamlValue().equals(type)) {
             QueryResult r = engine.execute(ctx.apiDefinition(), sql, params);
             if (r.data().isEmpty()) { return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .contentType(MediaType.APPLICATION_JSON).body(objectMapper.writeValueAsString(Map.of("error", "Not found"))); }
@@ -70,10 +72,17 @@ public class JdbcQueryHandler {
     private ResponseEntity<String> handlePaginated(String id, RequestContext ctx, HttpServletRequest req,
             QueryEngine engine, String sql, Map<String, Object> params) throws Exception {
         int page = getIntParam(req, "page", 1), size = getIntParam(req, "size", 20);
-        QueryResult data = engine.execute(ctx.apiDefinition(), paginationBuilder.build(sql, page, size), params);
-        long total = engine.executeCount(ctx.apiDefinition(), sql, params);
+        String dataSql = paginationBuilder.build(sql, page, size);
+        PaginatedResult result;
+        if (engine instanceof JdbcQueryEngine jdbcEngine) {
+            result = jdbcEngine.executePaginated(ctx.apiDefinition(), dataSql, sql, params);
+        } else {
+            QueryResult data = engine.execute(ctx.apiDefinition(), dataSql, params);
+            long total = engine.executeCount(ctx.apiDefinition(), sql, params);
+            result = new PaginatedResult(data.data(), total);
+        }
         return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON)
-                .body(objectMapper.writeValueAsString(pageResponseBuilder.build(data.data(), total, page, size)));
+                .body(objectMapper.writeValueAsString(pageResponseBuilder.build(result.data(), result.total(), page, size)));
     }
 
     private List<Map<String, Object>> applyScopeFilter(RequestContext ctx, List<Map<String, Object>> results) {

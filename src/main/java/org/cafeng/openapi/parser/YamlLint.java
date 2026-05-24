@@ -22,6 +22,8 @@ public class YamlLint {
     private static final Pattern SQL_INJECTION_PATTERN = Pattern.compile(
             "\\$\\{[^}]*\\+[^}]*}", Pattern.CASE_INSENSITIVE);
 
+    private static final Pattern CONDITION_PATTERN = Pattern.compile("\\$\\{(\\w+):\\s*([^}]+)\\}");
+
     public List<String> lint(List<ApiDefinition> apis) {
         List<String> errors = new ArrayList<>();
 
@@ -105,10 +107,9 @@ public class YamlLint {
     }
 
     private void checkConditionBinding(List<ApiDefinition> apis, List<String> errors) {
-        Pattern conditionPattern = Pattern.compile("\\$\\{(\\w+):\\s*([^}]+)\\}");
         for (ApiDefinition api : apis) {
             if (api.source() != null && api.source().query() != null) {
-                var matcher = conditionPattern.matcher(api.source().query());
+                var matcher = CONDITION_PATTERN.matcher(api.source().query());
                 while (matcher.find()) {
                     String paramName = matcher.group(1);
                     String sqlFragment = matcher.group(2);

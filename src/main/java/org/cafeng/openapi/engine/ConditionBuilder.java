@@ -10,6 +10,9 @@ import java.util.regex.*;
  * <p>When a parameter is present and non-empty, its SQL fragment is spliced into the
  * query. When absent, null, or empty, the fragment is omitted. Results are cached
  * keyed on the SQL template and active parameter names.</p>
+ *
+ * @implNote Thread-safe. Uses {@link ConcurrentHashMap} cache with stable
+ * {@link TreeSet}-based keys. Size capped at 5000 entries.
  */
 public class ConditionBuilder {
 
@@ -20,7 +23,8 @@ public class ConditionBuilder {
     public ConditionResult build(String baseSql, Map<String, Object> parameters) {
         Map<String, Object> params = parameters != null ? parameters : Map.of();
 
-        String cacheKey = baseSql + "|" + params.keySet();
+        String cacheKey = baseSql + "|" + new TreeSet<>(params.keySet());
+        if (conditionCache.size() > 5000) conditionCache.clear();
         CachedCondition cached = conditionCache.computeIfAbsent(cacheKey, k -> doBuildTemplate(baseSql, params));
 
         Map<String, Object> effectiveParams = new LinkedHashMap<>();

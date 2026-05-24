@@ -26,16 +26,13 @@ import org.cafeng.openapi.security.ApiKeyAuthenticationProvider;
 import org.cafeng.openapi.security.RateLimiter;
 import io.micrometer.core.instrument.MeterRegistry;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.actuate.autoconfigure.metrics.MeterRegistryCustomizer;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.ComponentScan;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 
@@ -139,9 +136,9 @@ public class DataApiAutoConfiguration {
     @ConditionalOnMissingBean(AuthenticationProvider.class)
     public AuthenticationProvider authenticationProvider(DataApiProperties properties) {
         return switch (properties.getAuthType()) {
-            case "jwt" -> new JwtAuthenticationProvider(properties.getJwtSecret());
-            case "apikey" -> new ApiKeyAuthenticationProvider(properties.getApiKeys());
-            default -> new NoOpAuthenticationProvider();
+            case JWT -> new JwtAuthenticationProvider(properties.getJwtSecret());
+            case APIKEY -> new ApiKeyAuthenticationProvider(properties.getApiKeys());
+            case NONE -> new NoOpAuthenticationProvider();
         };
     }
 

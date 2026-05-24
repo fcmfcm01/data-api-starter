@@ -33,12 +33,7 @@ public class JwtScopeResolver implements ScopeResolver {
             if (scopeClaim == null || scopeClaim.isBlank()) {
                 return Set.of();
             }
-            Set<String> scopes = new LinkedHashSet<>();
-            for (String s : scopeClaim.split("\\s+")) {
-                if (!s.isEmpty()) {
-                    scopes.add(s);
-                }
-            }
+            Set<String> scopes = new LinkedHashSet<>(ScopeUtils.parseScopeString(scopeClaim));
             return Collections.unmodifiableSet(scopes);
         } catch (Exception e) {
             return Set.of();

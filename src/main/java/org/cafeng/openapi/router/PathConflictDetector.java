@@ -4,7 +4,6 @@ import org.springframework.web.servlet.mvc.method.RequestMappingInfo;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 import org.springframework.web.method.HandlerMethod;
 
-import java.lang.reflect.Method;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -19,6 +18,8 @@ import java.util.regex.Pattern;
  */
 public class PathConflictDetector {
 
+    private static final Pattern PATH_PARAM_PATTERN = Pattern.compile("\\{[^}]+\\}");
+
     private final RequestMappingHandlerMapping handlerMapping;
 
     public PathConflictDetector(RequestMappingHandlerMapping handlerMapping) {
@@ -27,36 +28,36 @@ public class PathConflictDetector {
 
     public Set<ConflictInfo> detectConflicts(Set<ApiPath> yamlPaths) {
         Set<ConflictInfo> conflicts = new HashSet<>();
-        
         Map<RequestMappingInfo, HandlerMethod> handlerMethods = handlerMapping.getHandlerMethods();
-        
+
         for (RequestMappingInfo existingMapping : handlerMethods.keySet()) {
             Set<String> existingPaths = existingMapping.getPatternsCondition() != null
                     ? existingMapping.getPatternsCondition().getPatterns()
                     : Set.of();
-            
             Set<String> existingMethods = existingMapping.getMethodsCondition() != null
                     ? extractMethodNames(existingMapping.getMethodsCondition().getMethods())
                     : Set.of("*");
 
             for (ApiPath yamlPath : yamlPaths) {
                 for (String existingPath : existingPaths) {
-                    if (pathsMatch(existingPath, yamlPath.path())) {
-                        for (String yamlMethod : yamlPath.methods()) {
-                            if (existingMethods.contains("*") || existingMethods.contains(yamlMethod)) {
-                                conflicts.add(new ConflictInfo(
-                                        existingPath,
-                                        yamlPath.path(),
-                                        yamlMethod,
-                                        "Path and method conflict with existing Java controller"
-                                ));
-                            }
-                        }
-                    }
+                    conflicts.addAll(findConflictsForPath(yamlPath, existingPath, existingMethods));
                 }
             }
         }
-        
+        return conflicts;
+    }
+
+    private Set<ConflictInfo> findConflictsForPath(ApiPath yamlPath, String existingPath, Set<String> existingMethods) {
+        Set<ConflictInfo> conflicts = new HashSet<>();
+        if (!pathsMatch(existingPath, yamlPath.path())) return conflicts;
+
+        for (String yamlMethod : yamlPath.methods()) {
+            if (existingMethods.contains("*") || existingMethods.contains(yamlMethod)) {
+                conflicts.add(new ConflictInfo(
+                        existingPath, yamlPath.path(), yamlMethod,
+                        "Path and method conflict with existing Java controller"));
+            }
+        }
         return conflicts;
     }
 
@@ -70,7 +71,7 @@ public class PathConflictDetector {
     }
 
     private String toRegex(String path) {
-        return path.replaceAll("\\{[^}]+\\}", "[^/]+");
+        return PATH_PARAM_PATTERN.matcher(path).replaceAll("[^/]+");
     }
 
     private Set<String> extractMethodNames(Set<org.springframework.web.bind.annotation.RequestMethod> methods) {

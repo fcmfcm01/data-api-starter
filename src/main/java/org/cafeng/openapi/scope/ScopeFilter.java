@@ -13,6 +13,9 @@ import java.util.concurrent.ConcurrentHashMap;
  * (e.g. basic &lt; detail &lt; financial) and keeps only fields at or below
  * the caller's highest granted tier. Results are cached per field configuration
  * and scope combination.</p>
+ *
+ * @implNote Thread-safe. Uses {@link ConcurrentHashMap} cache.
+ * Bounded by field definitions &times; caller scope combinations.
  */
 public class ScopeFilter {
 
@@ -38,56 +41,77 @@ public class ScopeFilter {
         }
 
         List<ResponseField> fields = apiDefinition.response().fields();
+        List<String> scopeHierarchy = buildScopeHierarchy(fields);
 
-        // Build scope hierarchy from field declaration order (basic=0, detail=1, sensitive=2)
-        List<String> scopeHierarchy = new ArrayList<>();
-        for (ResponseField field : fields) {
-            if (!scopeHierarchy.contains(field.scope())) {
-                scopeHierarchy.add(field.scope());
-            }
+        Set<String> allowedFields = resolveAllowedFields(fields, callerScopes, scopeHierarchy);
+        if (allowedFields == null) {
+            return emptyRows(data.size());
         }
 
-        Set<String> allowedFields;
+        return filterRows(data, allowedFields);
+    }
 
+    private List<String> buildScopeHierarchy(List<ResponseField> fields) {
+        List<String> hierarchy = new ArrayList<>();
+        for (ResponseField field : fields) {
+            if (!hierarchy.contains(field.scope())) {
+                hierarchy.add(field.scope());
+            }
+        }
+        return hierarchy;
+    }
+
+    private Set<String> resolveAllowedFields(List<ResponseField> fields,
+            Set<String> callerScopes, List<String> scopeHierarchy) {
         if (callerScopes == null || callerScopes.isEmpty()) {
             if (strictScopes) {
-                return emptyRows(data.size());
+                return null;
             }
-            allowedFields = scopeFieldCache.computeIfAbsent(
+            return scopeFieldCache.computeIfAbsent(
                     buildCacheKey(fields, null), k -> excludeSensitiveFields(fields));
-        } else {
-            int highestIndex = -1;
-            for (String scope : callerScopes) {
-                int idx = scopeHierarchy.indexOf(scope);
-                if (idx >= 0 && idx > highestIndex) {
-                    highestIndex = idx;
-                }
-            }
-
-            if (highestIndex < 0) {
-                if (strictScopes) {
-                    return emptyRows(data.size());
-                }
-                allowedFields = scopeFieldCache.computeIfAbsent(
-                        buildCacheKey(fields, null), k -> excludeSensitiveFields(fields));
-            } else {
-                final int hi = highestIndex;
-                String scopeKey = buildCacheKey(fields, callerScopes);
-                allowedFields = scopeFieldCache.computeIfAbsent(scopeKey, k -> {
-                    Set<String> resolved = new HashSet<>();
-                    for (int i = 0; i <= hi; i++) {
-                        String scopeLevel = scopeHierarchy.get(i);
-                        for (ResponseField field : fields) {
-                            if (scopeLevel.equals(field.scope())) {
-                                resolved.add(field.name());
-                            }
-                        }
-                    }
-                    return resolved;
-                });
-            }
         }
 
+        int highestIndex = findHighestScopeIndex(callerScopes, scopeHierarchy);
+        if (highestIndex < 0) {
+            if (strictScopes) {
+                return null;
+            }
+            return scopeFieldCache.computeIfAbsent(
+                    buildCacheKey(fields, null), k -> excludeSensitiveFields(fields));
+        }
+
+        return scopeFieldCache.computeIfAbsent(
+                buildCacheKey(fields, callerScopes),
+                k -> collectFieldsUpToScope(fields, scopeHierarchy, highestIndex));
+    }
+
+    private int findHighestScopeIndex(Set<String> callerScopes, List<String> scopeHierarchy) {
+        int highestIndex = -1;
+        for (String scope : callerScopes) {
+            int idx = scopeHierarchy.indexOf(scope);
+            if (idx >= 0 && idx > highestIndex) {
+                highestIndex = idx;
+            }
+        }
+        return highestIndex;
+    }
+
+    private Set<String> collectFieldsUpToScope(List<ResponseField> fields,
+            List<String> scopeHierarchy, int highestIndex) {
+        Set<String> resolved = new HashSet<>();
+        for (int i = 0; i <= highestIndex; i++) {
+            String scopeLevel = scopeHierarchy.get(i);
+            for (ResponseField field : fields) {
+                if (scopeLevel.equals(field.scope())) {
+                    resolved.add(field.name());
+                }
+            }
+        }
+        return resolved;
+    }
+
+    private List<Map<String, Object>> filterRows(List<Map<String, Object>> data,
+            Set<String> allowedFields) {
         List<Map<String, Object>> filtered = new ArrayList<>();
         for (Map<String, Object> row : data) {
             Map<String, Object> filteredRow = new LinkedHashMap<>();
@@ -98,7 +122,6 @@ public class ScopeFilter {
             }
             filtered.add(filteredRow);
         }
-
         return filtered;
     }
 

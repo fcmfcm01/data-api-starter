@@ -1,6 +1,7 @@
 package org.cafeng.openapi.handler;
 
 import org.cafeng.openapi.error.DataApiException;
+import org.cafeng.openapi.definition.ResponseType;
 import org.cafeng.openapi.engine.QueryEngine;
 import org.cafeng.openapi.engine.QueryResult;
 import org.cafeng.openapi.engine.SqlInjectionGuard;
@@ -64,7 +65,7 @@ public class HttpForwardHandler {
 
             String json;
             if (data.size() == 1 && ctx.apiDefinition().response() != null
-                    && "single".equals(ctx.apiDefinition().response().type())) {
+                    && ResponseType.SINGLE.yamlValue().equals(ctx.apiDefinition().response().type())) {
                 json = objectMapper.writeValueAsString(data.get(0));
             } else {
                 json = objectMapper.writeValueAsString(data);

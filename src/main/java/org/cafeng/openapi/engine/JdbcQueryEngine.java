@@ -16,6 +16,10 @@ import java.util.regex.*;
  * and binds values through {@code setObject()}. Column names are automatically
  * converted from {@code snake_case} to {@code camelCase}. Parsed SQL and
  * camelCase conversions are cached for performance.</p>
+ *
+ * @implNote Thread-safe. Uses {@link ConcurrentHashMap} caches.
+ * {@code parsedSqlCache} bounded by YAML definitions.
+ * {@code camelCaseCache} unbounded (column names from DB metadata).
  */
 public class JdbcQueryEngine implements QueryEngine {
 
@@ -24,9 +28,13 @@ public class JdbcQueryEngine implements QueryEngine {
     
     private static final Pattern SNAKE_CASE_PATTERN = Pattern.compile("_([a-z])");
     private static final Pattern NAMED_PARAM_PATTERN = Pattern.compile(":([a-zA-Z]\\w*)");
+    private static final Pattern ORDER_BY_PATTERN = Pattern.compile("(?i)\\s+ORDER\\s+BY\\s+[^)]+(?=(\\)|$))");
+    private static final Pattern OFFSET_PATTERN = Pattern.compile("(?i)\\s+OFFSET\\s+\\d+\\s+ROWS?\\s+");
+    private static final Pattern FETCH_PATTERN = Pattern.compile("(?i)\\s+FETCH\\s+NEXT\\s+\\d+\\s+ROWS?\\s+ONLY");
 
     private final ConcurrentHashMap<String, ParsedSql> parsedSqlCache = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, String> camelCaseCache = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Integer> timeoutCache = new ConcurrentHashMap<>();
 
     public JdbcQueryEngine(DataSourceRegistry dataSourceRegistry) {
         this(dataSourceRegistry, 100);
@@ -95,6 +103,34 @@ public class JdbcQueryEngine implements QueryEngine {
         }
     }
 
+    public PaginatedResult executePaginated(
+            ApiDefinition apiDefinition,
+            String dataSql,
+            String countSql,
+            Map<String, Object> parameters) throws SQLException {
+
+        var dataSource = dataSourceRegistry.getDataSource(apiDefinition.source().datasource());
+
+        try (Connection conn = dataSource.getConnection()) {
+            List<Map<String, Object>> data;
+            try (PreparedStatement stmt = createStatement(conn, dataSql, parameters)) {
+                setQueryTimeout(stmt, apiDefinition);
+                try (ResultSet rs = stmt.executeQuery()) {
+                    data = resultSetToList(rs);
+                }
+            }
+
+            long total;
+            String effectiveCountSql = buildCountSql(countSql);
+            try (PreparedStatement stmt = createStatement(conn, effectiveCountSql, parameters);
+                 ResultSet rs = stmt.executeQuery()) {
+                total = rs.next() ? rs.getLong(1) : 0;
+            }
+
+            return new PaginatedResult(data, total);
+        }
+    }
+
     public int executeUpdate(
             ApiDefinition apiDefinition,
             String sql,
@@ -146,18 +182,17 @@ public class JdbcQueryEngine implements QueryEngine {
     }
 
     private void setQueryTimeout(PreparedStatement stmt, ApiDefinition apiDefinition) throws SQLException {
-        int timeout = apiDefinition.sla() != null && apiDefinition.sla().timeout() != null
-                ? apiDefinition.sla().timeout() / 1000
-                : 5;
+        int timeout = timeoutCache.computeIfAbsent(apiDefinition.id(), id ->
+                apiDefinition.sla() != null && apiDefinition.sla().timeout() != null
+                        ? apiDefinition.sla().timeout() / 1000
+                        : 5);
         stmt.setQueryTimeout(timeout);
     }
 
     String buildCountSql(String originalSql) {
-        String withoutOrderBy = originalSql
-                .replaceAll("(?i)\\s+ORDER\\s+BY\\s+[^)]+(?=(\\)|$))", "");
-        String withoutPagination = withoutOrderBy
-                .replaceAll("(?i)\\s+OFFSET\\s+\\d+\\s+ROWS?\\s+", " ")
-                .replaceAll("(?i)\\s+FETCH\\s+NEXT\\s+\\d+\\s+ROWS?\\s+ONLY", "");
+        String withoutOrderBy = ORDER_BY_PATTERN.matcher(originalSql).replaceAll("");
+        String withoutPagination = OFFSET_PATTERN.matcher(withoutOrderBy).replaceAll(" ");
+        withoutPagination = FETCH_PATTERN.matcher(withoutPagination).replaceAll("");
 
         return "SELECT COUNT(*) FROM (" + withoutPagination + ") AS _count";
     }
