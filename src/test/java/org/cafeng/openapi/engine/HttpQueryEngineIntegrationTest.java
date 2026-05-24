@@ -4,8 +4,9 @@ import org.cafeng.openapi.definition.*;
 import org.junit.jupiter.api.*;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.test.web.client.MockRestServiceServer;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.client.RestClient;
 
 import java.util.*;
 
@@ -18,15 +19,16 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
  */
 class HttpQueryEngineIntegrationTest {
 
-    private RestTemplate restTemplate;
+    private RestClient restClient;
     private MockRestServiceServer mockServer;
     private HttpQueryEngine engine;
 
     @BeforeEach
     void setUp() {
-        restTemplate = new RestTemplate();
-        mockServer = MockRestServiceServer.createServer(restTemplate);
-        engine = new HttpQueryEngine(restTemplate);
+        RestClient.Builder builder = RestClient.builder().requestFactory(new JdkClientHttpRequestFactory());
+        mockServer = MockRestServiceServer.bindTo(builder).build();
+        restClient = builder.build();
+        engine = new HttpQueryEngine(restClient);
     }
 
     private ApiDefinition httpApi(String url, String method) {

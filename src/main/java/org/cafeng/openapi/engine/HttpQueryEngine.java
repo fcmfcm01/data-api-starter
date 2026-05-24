@@ -5,8 +5,8 @@ import org.cafeng.openapi.definition.ApiSource;
 import org.cafeng.openapi.error.DataApiException;
 import org.springframework.http.*;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
+import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
-import org.springframework.web.client.RestTemplate;
 
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
@@ -32,21 +32,21 @@ public class HttpQueryEngine implements QueryEngine {
     private static final List<String> WRAPPER_KEYS = List.of("data", "items", "results", "records", "list");
     private static final List<String> TOTAL_KEYS = List.of("total", "total_count", "totalCount", "count");
 
-    private final RestTemplate overrideRestTemplate;
-    private final ConcurrentHashMap<Integer, RestTemplate> restTemplateCache = new ConcurrentHashMap<>();
+    private final RestClient overrideRestClient;
+    private final ConcurrentHashMap<Integer, RestClient> restClientCache = new ConcurrentHashMap<>();
 
     public HttpQueryEngine() {
-        this.overrideRestTemplate = null;
+        this.overrideRestClient = null;
     }
 
-    public HttpQueryEngine(RestTemplate restTemplate) {
-        this.overrideRestTemplate = restTemplate;
+    public HttpQueryEngine(RestClient restClient) {
+        this.overrideRestClient = restClient;
     }
 
-    private RestTemplate buildRestTemplate(int timeoutMs) {
+    private RestClient buildRestClient(int timeoutMs) {
         JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(SHARED_HTTP_CLIENT);
         factory.setReadTimeout(Duration.ofMillis(timeoutMs));
-        return new RestTemplate(factory);
+        return RestClient.builder().requestFactory(factory).build();
     }
 
     @Override
@@ -66,15 +66,15 @@ public class HttpQueryEngine implements QueryEngine {
             throw new DataApiException("HTTP source requires 'url' to be configured");
         }
 
-        RestTemplate restTemplate = overrideRestTemplate != null
-                ? overrideRestTemplate
-                : restTemplateCache.computeIfAbsent(timeout, this::buildRestTemplate);
+        RestClient restClient = overrideRestClient != null
+                ? overrideRestClient
+                : restClientCache.computeIfAbsent(timeout, this::buildRestClient);
 
         try {
             HttpHeaders headers = buildHeaders(source);
             String url = "GET".equals(method) ? buildUrlWithParams(baseUrl, params) : baseUrl;
 
-            Map<String, Object> body = executeRequest(restTemplate, method, url, params, headers);
+            Map<String, Object> body = executeRequest(restClient, method, url, params, headers);
             if (body == null) {
                 return new QueryResult(List.of(), 0, 0);
             }
@@ -97,15 +97,22 @@ public class HttpQueryEngine implements QueryEngine {
     }
 
     @SuppressWarnings("unchecked")
-    private Map<String, Object> executeRequest(RestTemplate restClient, String method,
+    private Map<String, Object> executeRequest(RestClient restClient, String method,
             String url, Map<String, Object> params, HttpHeaders headers) {
         if ("GET".equals(method)) {
-            ResponseEntity<Map> response = restClient.exchange(
-                    url, HttpMethod.GET, new HttpEntity<>(headers), Map.class);
+            ResponseEntity<Map> response = restClient.get()
+                    .uri(url)
+                    .headers(h -> h.addAll(headers))
+                    .retrieve()
+                    .toEntity(Map.class);
             return response.getBody();
         }
-        ResponseEntity<Map> response = restClient.exchange(
-                url, HttpMethod.valueOf(method), new HttpEntity<>(params, headers), Map.class);
+        ResponseEntity<Map> response = restClient.method(HttpMethod.valueOf(method))
+                .uri(url)
+                .headers(h -> h.addAll(headers))
+                .body(params)
+                .retrieve()
+                .toEntity(Map.class);
         return response.getBody();
     }
 
