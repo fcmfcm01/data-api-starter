@@ -1,0 +1,6 @@
+data-api:
+  scope-mapping: "internal:basic+detail+sensitive"
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html

@@ -1,0 +1,28 @@
+api:
+  id: proxy-posts
+  name: Proxy Posts
+  path: /v1/posts
+  method: GET
+  parameters:
+    - name: _limit
+      in: query
+      type: integer
+      required: false
+      description: Limit number of posts
+  source:
+    type: http
+    url: "https://jsonplaceholder.typicode.com/posts"
+    timeout: 5000
+  response:
+    type: list
+    fields:
+      - name: id
+        scope: basic
+      - name: title
+        scope: basic
+      - name: body
+        scope: detail
+  scopes:
+    post.read: basic
+  sla:
+    timeout: 5000

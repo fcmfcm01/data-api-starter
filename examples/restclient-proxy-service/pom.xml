@@ -12,6 +12,39 @@
     </parent>
 
     <artifactId>restclient-proxy-service</artifactId>
+    <packaging>jar</packaging>
+
     <name>RESTClient Proxy Service</name>
-    <description>HTTP forwarding example using RestClient - to be implemented</description>
+    <description>HTTP forwarding example using RestClient (source.type: http)</description>
+
+    <dependencies>
+        <!-- Data API Starter -->
+        <dependency>
+            <groupId>org.cafeng</groupId>
+            <artifactId>data-api-starter</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- Spring Boot Web -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- OpenAPI / Swagger UI -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <version>${springdoc-openapi.version}</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
 </project>

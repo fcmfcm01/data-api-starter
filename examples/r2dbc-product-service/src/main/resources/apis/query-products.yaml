@@ -1,0 +1,38 @@
+api:
+  id: query-products
+  name: Query Products
+  path: /v1/products
+  method: GET
+  parameters:
+    - name: category
+      in: query
+      type: string
+      required: false
+      description: Filter by product category
+    - name: page
+      in: query
+      type: integer
+      required: false
+    - name: size
+      in: query
+      type: integer
+      required: false
+  source:
+    type: r2dbc
+    datasource: connectionFactory
+    query: "SELECT id, name, price, category FROM products WHERE 1=1 ${category: AND category = :category}"
+  response:
+    type: page
+    fields:
+      - name: id
+        scope: basic
+      - name: name
+        scope: basic
+      - name: price
+        scope: basic
+      - name: category
+        scope: detail
+  scopes:
+    product.read: basic
+  sla:
+    timeout: 3000

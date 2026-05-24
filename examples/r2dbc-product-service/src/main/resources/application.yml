@@ -1,0 +1,17 @@
+spring:
+  r2dbc:
+    url: r2dbc:h2:mem:///products;MODE=MySQL
+    username: sa
+
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema.sql
+      data-locations: classpath:data.sql
+
+data-api:
+  scope-mapping: "internal:basic+detail"
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html

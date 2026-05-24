@@ -1,0 +1,22 @@
+api:
+  id: proxy-users
+  name: Proxy Users
+  path: /v1/users
+  method: GET
+  source:
+    type: http
+    url: "https://jsonplaceholder.typicode.com/users"
+    timeout: 5000
+  response:
+    type: list
+    fields:
+      - name: id
+        scope: basic
+      - name: name
+        scope: basic
+      - name: email
+        scope: detail
+  scopes:
+    user.read: basic
+  sla:
+    timeout: 5000
