@@ -12,7 +12,9 @@ Thanks for your interest in contributing. This guide covers how to build, test, 
 
 ```bash
 git clone <repo-url> && cd data-api-starter
-mvn clean install
+mvn clean install               # 构建所有模块（starter + examples + spikes）
+# 或只构建 starter：
+# mvn clean install -Pskip-examples -Pskip-spikes
 ```
 
 This compiles the code, runs all tests, and installs the artifact to your local Maven repository.
@@ -26,17 +28,17 @@ mvn clean install -DskipTests
 ## Running Tests
 
 ```bash
-# All tests
-mvn test
+# All tests (starter module)
+mvn test -pl starter
 
 # A single test class
-mvn test -Dtest=JdbcQueryEngineTest
+mvn test -pl starter -Dtest=JdbcQueryEngineTest
 
 # A single test method
-mvn test -Dtest=JdbcQueryEngineTest#testBasicQuery
+mvn test -pl starter -Dtest=JdbcQueryEngineTest#testBasicQuery
 ```
 
-The project has around 290 tests. All must pass before submitting a PR.
+The starter module has ~368 tests. All must pass before submitting a PR.
 
 ## Code Style
 
@@ -51,25 +53,38 @@ The project has around 290 tests. All must pass before submitting a PR.
 ## Project Structure
 
 ```
-src/main/java/org/cafeng/openapi/
-  autoconfigure/   Spring Boot auto-configuration
-  capability/      /capabilities endpoint
-  datasource/      DataSource registry
-  definition/      API definition records
-  engine/          Query engines, SQL guards, condition/pagination builders
-  error/           Exception handling and message sanitization
-  handler/         Request handlers for JDBC and HTTP sources
-  openapi/         OpenAPI spec generator
-  param/           Request parameter mapping
-  parser/          YAML discovery, parsing, and linting
-  registry/        API definition registry
-  router/          Dynamic route registration and conflict detection
-  scope/           Scope resolution and field filtering
-  security/        Authentication providers and rate limiter
-  sla/             SLA monitoring with Micrometer
-
-src/test/java/org/cafeng/openapi/
-  (mirrors main structure)
+data-api-starter/
+├── pom.xml                    ← 父 POM（聚合模块）
+├── starter/                   ← starter 模块
+│   ├── pom.xml
+│   └── src/
+│       ├── main/java/org/cafeng/openapi/
+│       │   autoconfigure/   Spring Boot auto-configuration
+│       │   capability/      /capabilities endpoint
+│       │   datasource/      DataSource registry
+│       │   definition/      API definition records
+│       │   engine/          Query engines, SQL guards, dialect, condition/pagination builders
+│       │   error/           Exception handling and message sanitization
+│       │   handler/         Request handlers for JDBC, R2DBC, and HTTP sources
+│       │   openapi/         OpenAPI spec generator
+│       │   param/           Request parameter mapping
+│       │   parser/          YAML discovery, parsing, and linting
+│       │   r2dbc/           ConnectionFactory registry for R2DBC
+│       │   registry/        API definition registry
+│       │   router/          Dynamic route registration and conflict detection
+│       │   scope/           Scope resolution and field filtering
+│       │   security/        Authentication providers and rate limiter
+│       │   sla/             SLA monitoring with Micrometer
+│       └── test/java/org/cafeng/openapi/
+│           (mirrors main structure)
+├── examples/                  ← 示例应用
+│   ├── order-service/         JDBC + MSSQL 方言
+│   ├── r2dbc-product-service/ R2DBC + MySQL 方言
+│   └── restclient-proxy-service/ HTTP 转发
+└── spikes/                    ← 技术验证项目
+    ├── r2dbc-connection-factory-spike/
+    ├── dialect-detection-spike/
+    └── restclient-spike/
 ```
 
 ## Making Changes
@@ -84,9 +99,9 @@ src/test/java/org/cafeng/openapi/
 
 3. Run the full test suite:
 
-   ```bash
-   mvn test
-   ```
+    ```bash
+    mvn test -pl starter
+    ```
 
 4. Commit with a clear message:
 
@@ -101,7 +116,7 @@ src/test/java/org/cafeng/openapi/
 - One logical change per PR. Avoid mixing refactoring with new features
 - Include tests that verify the new behavior or fix
 - If changing public API signatures, update Javadoc and docs
-- Ensure `mvn test` passes cleanly before pushing
+- Ensure `mvn test -pl starter` passes cleanly before pushing
 - If your change affects YAML configuration, update `docs/yaml-spec.md`
 
 ## Reporting Issues

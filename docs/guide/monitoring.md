@@ -84,6 +84,22 @@ curl http://localhost:8080/actuator/health
 
 如果需要监控 API 可用性，可以通过 Prometheus 告警规则基于 `dataapi.error` 和 `dataapi.latency` 指标触发。
 
+## R2DBC 监控
+
+R2DBC 查询（`source.type: r2dbc`）与 JDBC 查询共享相同的指标体系。`R2dbcQueryEngine` 内部使用同一个 `SlaMonitor` 进行指标采集，因此上述四类指标（`dataapi.query`、`dataapi.latency`、`dataapi.success`、`dataapi.error`）同时覆盖两种引擎，无需额外配置。
+
+### R2DBC 日志
+
+在日志配置中添加 `org.cafeng.openapi.r2dbc` 包以查看 R2DBC 特有的日志输出（连接获取、参数绑定等）：
+
+```yaml
+logging:
+  level:
+    org.cafeng.openapi.r2dbc: DEBUG
+```
+
+R2DBC 连接获取过程在 DEBUG 级别记录。所有引擎的通用日志（查询执行、SLA 超时等）仍然通过 `org.cafeng.openapi.engine` 包输出。
+
 ## 日志
 
 所有 API 请求在 DEBUG 级别记录。在 `application.yml` 中调整日志级别：

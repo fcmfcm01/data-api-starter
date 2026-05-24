@@ -69,8 +69,8 @@ api:
 
 | 字段 | 类型 | 必填 | 默认值 | 说明 |
 |------|------|------|--------|------|
-| `type` | string | ❌ | `jdbc` | 数据源类型，当前仅支持 `jdbc` |
-| `datasource` | string | ✅ | - | 数据源名称，对应 Spring 容器中的 DataSource Bean 名称。单数据源默认为 `dataSource` |
+| `type` | string | ❌ | `jdbc` | 数据源类型，支持 `jdbc`、`r2dbc`、`http` |
+| `datasource` | string | ✅ | - | 数据源名称。JDBC 对应 Spring 容器中的 DataSource Bean 名称（单数据源默认 `dataSource`）；R2DBC 对应 ConnectionFactory Bean 名称（单数据源默认 `connectionFactory`） |
 | `query` | string | ✅ | - | SQL 查询语句。支持 `:paramName` 参数占位符和 `${param: SQL片段}` 条件语法 |
 
 ### response 字段明细
@@ -356,7 +356,7 @@ scopes:
 - `page`：当前页码（从 1 开始）
 - `size`：每页大小
 
-COUNT 查询策略：`SELECT COUNT(*) FROM (原始SQL去掉OFFSET/FETCH) AS _count`
+COUNT 查询策略：框架根据 SqlDialect 移除对应的分片子句（`OFFSET ... FETCH` 或 `LIMIT ... OFFSET`），生成 `SELECT COUNT(*) FROM (原始SQL去掉分片子句) AS _count`
 
 ### list 响应格式
 
@@ -534,7 +534,9 @@ api:
 
 ## 数据源配置
 
-数据源通过 Spring Boot 标准配置，在 `application.yml` 中定义：
+### JDBC 数据源
+
+JDBC 数据源通过 Spring Boot 标准配置，在 `application.yml` 中定义：
 
 ```yaml
 # 单数据源
@@ -551,6 +553,128 @@ YAML API 定义中的 `source.datasource` 对应 Spring 容器中的 DataSource 
 
 - 单数据源：默认 Bean 名称为 `dataSource`
 - 多数据源：通过 `@Bean(name="mssql-order")` 自定义 Bean 名称，YAML 中对应填写 `datasource: mssql-order`
+
+### R2DBC 数据源
+
+R2DBC 是 Spring 生态的响应式数据库连接规范，框架通过 `R2dbcQueryEngine` 提供支持。R2DBC 使用 `ConnectionFactory`（而非 JDBC 的 `DataSource`），通过 `spring.r2dbc.*` 属性配置。
+
+**与 JDBC 的关键差异：**
+
+| 特性 | JDBC | R2DBC |
+|------|------|-------|
+| 连接对象 | `DataSource` | `ConnectionFactory` |
+| 参数绑定 | 1-based（`?` 从 1 开始） | 0-based（`?` 从 0 开始） |
+| 默认 Bean 名称 | `dataSource` | `connectionFactory` |
+| 配置前缀 | `spring.datasource.*` | `spring.r2dbc.*` |
+| 依赖 | `spring-boot-starter-jdbc` | `spring-boot-starter-data-r2dbc` |
+
+**配置示例：**
+
+```yaml
+spring:
+  r2dbc:
+    url: r2dbc:h2:mem:///products;MODE=MySQL
+    username: sa
+```
+
+**YAML API 定义示例：**
+
+```yaml
+api:
+  id: query-products
+  name: Query Products
+  path: /v1/products
+  method: GET
+  parameters:
+    - name: category
+      in: query
+      type: string
+      required: false
+    - name: page
+      in: query
+      type: integer
+      required: false
+    - name: size
+      in: query
+      type: integer
+      required: false
+  source:
+    type: r2dbc
+    datasource: connectionFactory
+    query: "SELECT id, name, price, category FROM products WHERE 1=1 ${category: AND category = :category}"
+  response:
+    type: page
+    fields:
+      - name: id
+        scope: basic
+      - name: name
+        scope: basic
+      - name: price
+        scope: basic
+      - name: category
+        scope: detail
+  scopes:
+    product.read: basic
+```
+
+> **注意**：R2DBC 的 `source.datasource` 对应 Spring 容器中的 `ConnectionFactory` Bean 名称。使用 `spring-boot-starter-data-r2dbc` 自动配置时，默认 Bean 名称为 `connectionFactory`。
+
+---
+
+## SqlDialect 与多数据库分页
+
+框架内置 `SqlDialect` 枚举，自动根据数据源 URL 检测数据库类型并生成对应的分页 SQL。
+
+### 支持的方言
+
+| 方言 | 数据库 | 分页语法 |
+|------|--------|----------|
+| `MSSQL` | SQL Server | `OFFSET N ROWS FETCH NEXT M ROWS ONLY` |
+| `MYSQL` | MySQL | `LIMIT M OFFSET N` |
+| `POSTGRESQL` | PostgreSQL | `LIMIT M OFFSET N` |
+| `H2` | H2（默认模式） | `LIMIT M OFFSET N` |
+
+### 自动检测
+
+`SqlDialect.fromUrl()` 根据 JDBC 或 R2DBC URL 前缀自动识别方言：
+
+| URL 前缀 | 检测结果 |
+|----------|---------|
+| `jdbc:sqlserver:` / `r2dbc:sqlserver:` | `MSSQL` |
+| `jdbc:mysql:` / `r2dbc:mysql:` | `MYSQL` |
+| `jdbc:postgresql:` / `r2dbc:postgresql:` | `POSTGRESQL` |
+| `jdbc:h2:` / `r2dbc:h2:` | `H2`（除非 URL 包含 `MODE=MSSQLServer`，则返回 `MSSQL`） |
+
+> **H2 兼容模式**：当 H2 URL 中包含 `MODE=MSSQLServer` 或 `MODE=MSSQL` 时，框架自动切换为 MSSQL 方言，生成 `OFFSET ... FETCH` 分页语法。这在开发和测试环境中很有用，可以用 H2 模拟 SQL Server 行为。
+
+### 分页 SQL 生成
+
+`PaginationBuilder` 根据方言生成对应的分页子句：
+
+**MSSQL 方言：**
+```sql
+SELECT order_no, status FROM orders WHERE 1=1
+OFFSET 0 ROWS FETCH NEXT 20 ROWS ONLY
+```
+
+**MySQL / PostgreSQL / H2 方言：**
+```sql
+SELECT order_no, status FROM orders WHERE 1=1
+LIMIT 20 OFFSET 0
+```
+
+安全限制：单页最大 1000 条（`MAX_PAGE_SIZE`），页码最大 10000（`MAX_PAGE`）。
+
+### COUNT 查询
+
+分页查询自动执行 COUNT 查询获取总记录数。`buildCountSql()` 方法根据方言移除对应的分片子句（`OFFSET ... FETCH` 或 `LIMIT ... OFFSET`），外包 `SELECT COUNT(*)`：
+
+```sql
+-- 原始查询
+SELECT * FROM orders WHERE 1=1 ORDER BY order_no OFFSET 0 ROWS FETCH NEXT 20 ROWS ONLY
+-- 生成的 COUNT 查询
+SELECT COUNT(*) FROM (SELECT * FROM orders WHERE 1=1) AS _count
+```
 
 ---
 
@@ -569,7 +693,7 @@ SQL 查询返回的列名自动从 `snake_case` 转换为 `camelCase`：
 
 ## HTTP 数据源
 
-除 JDBC 外，API 可以配置为转发请求到上游 HTTP 服务。
+除 JDBC 和 R2DBC 外，API 可以配置为转发请求到上游 HTTP 服务。框架内部使用 Spring 6 的 `RestClient` 实现请求转发。
 
 ### 配置方式
 

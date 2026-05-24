@@ -38,6 +38,51 @@ public class ElasticsearchQueryEngine implements QueryEngine {
 
 注册后，YAML 中可以使用 `source.type: elasticsearch`。
 
+### 内置引擎
+
+框架自带两个 `QueryEngine` 实现：
+
+| 引擎 | type | 说明 |
+|------|------|------|
+| `JdbcQueryEngine` | `jdbc` | 基于 JDBC `DataSource` 的默认引擎 |
+| `R2dbcQueryEngine` | `r2dbc` | 基于 R2DBC `ConnectionFactory` 的响应式引擎 |
+
+#### R2dbcQueryEngine
+
+`R2dbcQueryEngine` 通过 `ConnectionFactoryRegistry` 查找 `ConnectionFactory` bean，使用 `.block()` 阻塞门面包装响应式 R2DBC 操作。关键行为：
+
+- **参数绑定**：R2DBC 使用 0-based 索引（JDBC 是 1-based），命名参数 `:paramName` 自动转换为 `?` 占位符
+- **WebFlux 非必须**：虽然内部使用 Reactor，但通过 `.block()` 阻塞等待结果，可以在 Spring MVC 项目中直接使用
+- **列名转换**：`snake_case` 自动转为 `camelCase`
+
+YAML 中指定 `source.type: r2dbc` 即可启用：
+
+```yaml
+api:
+  id: query-orders
+  source:
+    type: r2dbc
+    datasource: connectionFactory   # ConnectionFactory bean 名称
+    query: "SELECT * FROM orders WHERE status = :status"
+```
+
+### QueryEngine 接口细节
+
+`QueryEngine` 接口提供以下默认方法：
+
+- `getDialect(String datasourceName)`：返回数据源对应的 `SqlDialect`，默认为 `MSSQL`。`JdbcQueryEngine` 通过 `SqlDialect.fromUrl()` 从 JDBC URL 自动检测方言；`R2dbcQueryEngine` 通过 `ConnectionFactory.getMetadata().getName()` 检测
+- `executeCount()`：用于分页查询的总数计算，不支持时抛出 `UnsupportedOperationException`
+- `executePaginated()`：默认实现组合 `execute()` + `executeCount()`
+
+### ConnectionFactoryRegistry
+
+`ConnectionFactoryRegistry` 是 R2DBC 的连接工厂注册表，与 JDBC 的 `DataSourceRegistry` 对应：
+
+- 自动收集 Spring 容器中所有 `ConnectionFactory` bean
+- 以 bean 名称作为注册键
+- 默认 bean 名称来自 Spring Boot R2DBC 自动配置（通常为 `connectionFactory`）
+- 查找不存在的名称时抛出 `ConnectionFactoryNotFoundException`
+
 ## 自定义 ScopeResolver
 
 实现 `ScopeResolver` 接口以从自定义来源（数据库、LDAP、OAuth2 scopes）解析调用方权限。
