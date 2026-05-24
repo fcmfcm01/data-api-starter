@@ -1,10 +1,11 @@
 package org.cafeng.openapi.engine;
 
 /**
- * Appends SQL Server-style pagination clauses to a query.
+ * Appends dialect-appropriate pagination clauses to a query.
  *
- * <p>Generates {@code OFFSET N ROWS FETCH NEXT M ROWS ONLY} with safety
- * limits: page size capped at 1000, page number capped at 10000.
+ * <p>For {@link SqlDialect#MSSQL} generates {@code OFFSET N ROWS FETCH NEXT M ROWS ONLY}.
+ * For all other dialects generates {@code LIMIT M OFFSET N}.
+ * Safety limits: page size capped at 1000, page number capped at 10000.
  * Uses {@code Math.multiplyExact} to catch integer overflow on deep offsets.</p>
  */
 public class PaginationBuilder {
@@ -13,6 +14,10 @@ public class PaginationBuilder {
     private static final int MAX_PAGE = 10000;
 
     public String build(String baseSql, int page, int size) {
+        return build(baseSql, page, size, SqlDialect.MSSQL);
+    }
+
+    public String build(String baseSql, int page, int size, SqlDialect dialect) {
         if (page <= 0 || size <= 0) {
             throw new IllegalArgumentException("Page and size must be positive");
         }
@@ -24,6 +29,10 @@ public class PaginationBuilder {
         }
         
         int offset = Math.multiplyExact(Math.subtractExact(page, 1), size);
-        return baseSql + " OFFSET " + offset + " ROWS FETCH NEXT " + size + " ROWS ONLY";
+        if (dialect == SqlDialect.MSSQL) {
+            return baseSql + " OFFSET " + offset + " ROWS FETCH NEXT " + size + " ROWS ONLY";
+        } else {
+            return baseSql + " LIMIT " + size + " OFFSET " + offset;
+        }
     }
 }

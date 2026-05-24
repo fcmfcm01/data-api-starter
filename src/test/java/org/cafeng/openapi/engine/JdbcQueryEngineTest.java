@@ -212,6 +212,28 @@ class JdbcQueryEngineTest {
     }
 
     @Test
+    void buildCountSql_stripsLimitOffset() {
+        String sql = "SELECT * FROM users ORDER BY name LIMIT 10 OFFSET 20";
+        String countSql = engine.buildCountSql(sql);
+        assertFalse(countSql.toUpperCase().contains("LIMIT"), "COUNT SQL should not contain LIMIT");
+        assertFalse(countSql.toUpperCase().contains("OFFSET"), "COUNT SQL should not contain OFFSET");
+        assertTrue(countSql.contains("SELECT COUNT(*)"));
+    }
+
+    @Test
+    void buildCountSql_stripsBothSyntaxes() {
+        String mssql = "SELECT * FROM users ORDER BY name OFFSET 5 ROWS FETCH NEXT 10 ROWS ONLY";
+        String countMssql = engine.buildCountSql(mssql);
+        assertFalse(countMssql.toUpperCase().contains("OFFSET"));
+        assertFalse(countMssql.toUpperCase().contains("FETCH"));
+
+        String mysql = "SELECT * FROM users ORDER BY name LIMIT 10 OFFSET 5";
+        String countMysql = engine.buildCountSql(mysql);
+        assertFalse(countMysql.toUpperCase().contains("LIMIT"));
+        assertFalse(countMysql.toUpperCase().contains("OFFSET"));
+    }
+
+    @Test
     void shouldHandleMultipleInserts() throws SQLException {
         var api = createTestApi();
         engine.executeUpdate(api, "INSERT INTO users (id, user_name, email) VALUES (10, 'X', 'x@t.com')", Map.of());

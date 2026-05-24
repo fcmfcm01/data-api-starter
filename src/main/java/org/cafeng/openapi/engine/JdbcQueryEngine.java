@@ -31,6 +31,7 @@ public class JdbcQueryEngine implements QueryEngine {
     private static final Pattern ORDER_BY_PATTERN = Pattern.compile("(?i)\\s+ORDER\\s+BY\\s+[^)]+(?=(\\)|$))");
     private static final Pattern OFFSET_PATTERN = Pattern.compile("(?i)\\s+OFFSET\\s+\\d+\\s+ROWS?\\s+");
     private static final Pattern FETCH_PATTERN = Pattern.compile("(?i)\\s+FETCH\\s+NEXT\\s+\\d+\\s+ROWS?\\s+ONLY");
+    private static final Pattern LIMIT_OFFSET_PATTERN = Pattern.compile("(?i)\\s+LIMIT\\s+\\d+\\s+OFFSET\\s+\\d+");
 
     private final ConcurrentHashMap<String, ParsedSql> parsedSqlCache = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, String> camelCaseCache = new ConcurrentHashMap<>();
@@ -193,6 +194,7 @@ public class JdbcQueryEngine implements QueryEngine {
         String withoutOrderBy = ORDER_BY_PATTERN.matcher(originalSql).replaceAll("");
         String withoutPagination = OFFSET_PATTERN.matcher(withoutOrderBy).replaceAll(" ");
         withoutPagination = FETCH_PATTERN.matcher(withoutPagination).replaceAll("");
+        withoutPagination = LIMIT_OFFSET_PATTERN.matcher(withoutPagination).replaceAll("");
 
         return "SELECT COUNT(*) FROM (" + withoutPagination + ") AS _count";
     }

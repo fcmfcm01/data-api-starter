@@ -64,4 +64,34 @@ class PaginationBuilderTest {
         String result = builder.build("SELECT * FROM orders", 10000, 1000);
         assertEquals("SELECT * FROM orders OFFSET 9999000 ROWS FETCH NEXT 1000 ROWS ONLY", result);
     }
+
+    @Test
+    void build_mssqlDialect_usesOffsetFetch() {
+        String result = builder.build("SELECT * FROM orders", 2, 10, SqlDialect.MSSQL);
+        assertEquals("SELECT * FROM orders OFFSET 10 ROWS FETCH NEXT 10 ROWS ONLY", result);
+    }
+
+    @Test
+    void build_mysqlDialect_usesLimitOffset() {
+        String result = builder.build("SELECT * FROM orders", 2, 10, SqlDialect.MYSQL);
+        assertEquals("SELECT * FROM orders LIMIT 10 OFFSET 10", result);
+    }
+
+    @Test
+    void build_postgresqlDialect_usesLimitOffset() {
+        String result = builder.build("SELECT * FROM orders", 3, 5, SqlDialect.POSTGRESQL);
+        assertEquals("SELECT * FROM orders LIMIT 5 OFFSET 10", result);
+    }
+
+    @Test
+    void build_h2Dialect_usesLimitOffset() {
+        String result = builder.build("SELECT * FROM orders", 1, 20, SqlDialect.H2);
+        assertEquals("SELECT * FROM orders LIMIT 20 OFFSET 0", result);
+    }
+
+    @Test
+    void build_defaultOverload_usesMssqlSyntax() {
+        String result = builder.build("SELECT * FROM orders", 1, 10);
+        assertEquals("SELECT * FROM orders OFFSET 0 ROWS FETCH NEXT 10 ROWS ONLY", result);
+    }
 }
