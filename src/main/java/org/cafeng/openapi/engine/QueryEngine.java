@@ -6,7 +6,7 @@ import java.util.Map;
 /**
  * Strategy interface for executing data source queries.
  *
- * <p>Implementations handle different source types (JDBC, HTTP).
+ * <p>Implementations handle different source types (JDBC, R2DBC, HTTP).
  * The framework selects the appropriate engine based on
  * {@code ApiSource.type()} at request time.</p>
  */
@@ -24,4 +24,6 @@ public interface QueryEngine {
         long total = executeCount(api, countSql, params);
         return new PaginatedResult(data.data(), total);
     }
+
+    default SqlDialect getDialect(String datasourceName) { return SqlDialect.MSSQL; }
 }

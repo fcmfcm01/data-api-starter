@@ -35,8 +35,8 @@ public class JdbcQueryHandler {
         try {
             ConditionBuilder.ConditionResult cr = conditionBuilder.build(ctx.apiDefinition().source().query(), ctx.sqlParams());
             sqlInjectionGuard.validate(cr.parameters()); ddlGuard.check(cr.sql(), ctx.authResult().callerId());
-            QueryEngine engine = engines.get("jdbc");
-            if (engine == null) throw new DataApiException("No JDBC query engine available");
+            QueryEngine engine = engines.get(ctx.apiDefinition().source().type());
+            if (engine == null) throw new DataApiException("No " + ctx.apiDefinition().source().type().toUpperCase() + " query engine available");
             ResponseEntity<String> response = SqlOperationUtils.isWriteOperation(cr.sql())
                     ? handleWrite(id, ctx, engine, cr.sql(), cr.parameters())
                     : handleRead(id, ctx, req, engine, cr.sql(), cr.parameters());
@@ -72,7 +72,8 @@ public class JdbcQueryHandler {
     private ResponseEntity<String> handlePaginated(String id, RequestContext ctx, HttpServletRequest req,
             QueryEngine engine, String sql, Map<String, Object> params) throws Exception {
         int page = getIntParam(req, "page", 1), size = getIntParam(req, "size", 20);
-        String dataSql = paginationBuilder.build(sql, page, size);
+        SqlDialect dialect = engine.getDialect(ctx.apiDefinition().source().datasource());
+        String dataSql = paginationBuilder.build(sql, page, size, dialect);
         PaginatedResult result;
         if (engine instanceof JdbcQueryEngine jdbcEngine) {
             result = jdbcEngine.executePaginated(ctx.apiDefinition(), dataSql, sql, params);

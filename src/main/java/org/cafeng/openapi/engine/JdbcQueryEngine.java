@@ -52,6 +52,19 @@ public class JdbcQueryEngine implements QueryEngine {
     }
 
     @Override
+    public SqlDialect getDialect(String datasourceName) {
+        try {
+            var ds = dataSourceRegistry.getDataSource(datasourceName);
+            try (var conn = ds.getConnection()) {
+                String url = conn.getMetaData().getURL();
+                return SqlDialect.fromUrl(url);
+            }
+        } catch (Exception e) {
+            return SqlDialect.MSSQL;
+        }
+    }
+
+    @Override
     public QueryResult execute(ApiDefinition api, String processedQuery, Map<String, Object> parameters) {
         try {
             if (SqlOperationUtils.isWriteOperation(processedQuery)) {

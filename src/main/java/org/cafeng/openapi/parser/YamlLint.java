@@ -82,14 +82,15 @@ public class YamlLint {
                     if (api.source().url() == null || api.source().url().isBlank()) {
                         errors.add("source.url is required for HTTP type (id: " + api.id() + ")");
                     }
-                } else {
-                    // Default: JDBC source
+                } else if ("jdbc".equals(sourceType) || "r2dbc".equals(sourceType)) {
                     if (api.source().datasource() == null || api.source().datasource().isBlank()) {
-                        errors.add("source.datasource is required (id: " + api.id() + ")");
+                        errors.add("source.datasource is required for " + sourceType + " type (id: " + api.id() + ")");
                     }
                     if (api.source().query() == null || api.source().query().isBlank()) {
-                        errors.add("source.query is required (id: " + api.id() + ")");
+                        errors.add("source.query is required for " + sourceType + " type (id: " + api.id() + ")");
                     }
+                } else {
+                    errors.add("Unknown source.type '" + sourceType + "' (id: " + api.id() + "). Valid: jdbc, r2dbc, http");
                 }
             }
         }

@@ -118,7 +118,8 @@ class JdbcQueryHandlerTest {
         when(queryEngine.execute(any(), anyString(), anyMap()))
                 .thenReturn(new QueryResult(pageData, 1, 0));
         when(queryEngine.executeCount(any(), anyString(), anyMap())).thenReturn(100L);
-        when(paginationBuilder.build(anyString(), anyInt(), anyInt())).thenReturn("SELECT * FROM test OFFSET 0 FETCH NEXT 20");
+        when(queryEngine.getDialect(anyString())).thenReturn(SqlDialect.MSSQL);
+        when(paginationBuilder.build(anyString(), anyInt(), anyInt(), any(SqlDialect.class))).thenReturn("SELECT * FROM test OFFSET 0 FETCH NEXT 20");
         when(pageResponseBuilder.build(anyList(), anyLong(), anyInt(), anyInt()))
                 .thenReturn(Map.of("data", pageData, "total", 100, "page", 1, "size", 20));
 

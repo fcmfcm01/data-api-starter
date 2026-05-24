@@ -48,6 +48,23 @@ public class R2dbcQueryEngine implements QueryEngine {
     }
 
     @Override
+    public SqlDialect getDialect(String datasourceName) {
+        try {
+            var cf = registry.get(datasourceName);
+            String product = cf.getMetadata().getName();
+            if (product != null) {
+                String lower = product.toLowerCase();
+                if (lower.contains("sqlserver") || lower.contains("mssql")) return SqlDialect.MSSQL;
+                if (lower.contains("postgresql")) return SqlDialect.POSTGRESQL;
+                if (lower.contains("mysql")) return SqlDialect.MYSQL;
+            }
+            return SqlDialect.H2;
+        } catch (Exception e) {
+            return SqlDialect.MSSQL;
+        }
+    }
+
+    @Override
     public QueryResult execute(ApiDefinition api, String processedQuery, Map<String, Object> parameters) {
         try {
             if (SqlOperationUtils.isWriteOperation(processedQuery)) {
