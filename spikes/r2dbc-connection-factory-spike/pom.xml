@@ -13,5 +13,32 @@
 
     <artifactId>r2dbc-connection-factory-spike</artifactId>
     <name>R2DBC Connection Factory Spike</name>
-    <description>R2DBC ConnectionFactory validation - to be implemented</description>
+    <description>Spike to verify R2DBC ConnectionFactory auto-config and R2dbcQueryEngine integration</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.cafeng</groupId>
+            <artifactId>data-api-starter</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-r2dbc</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.r2dbc</groupId>
+            <artifactId>r2dbc-h2</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
 </project>

@@ -13,5 +13,22 @@
 
     <artifactId>restclient-spike</artifactId>
     <name>RESTClient Spike</name>
-    <description>RESTClient HTTP forwarding validation - to be implemented</description>
+    <description>Standalone spike verifying RestClient HTTP forwarding via MockRestServiceServer</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.cafeng</groupId>
+            <artifactId>data-api-starter</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
 </project>
