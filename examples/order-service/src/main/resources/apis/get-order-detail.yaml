@@ -1,0 +1,30 @@
+api:
+  id: get-order-detail
+  name: Get Order Detail
+  path: /v1/orders/{orderNo}
+  method: GET
+  parameters:
+    - name: orderNo
+      in: path
+      type: string
+      required: true
+      description: Order number
+  source:
+    type: jdbc
+    datasource: dataSource
+    query: "SELECT order_no, status, amount, customer_name FROM orders WHERE order_no = :orderNo"
+  response:
+    type: single
+    fields:
+      - name: orderNo
+        scope: basic
+      - name: status
+        scope: basic
+      - name: amount
+        scope: basic
+      - name: customerName
+        scope: detail
+  scopes:
+    order.read: basic
+  sla:
+    timeout: 3000

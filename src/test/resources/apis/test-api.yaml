@@ -1,0 +1,24 @@
+# Test API definition
+api:
+  id: test-api
+  name: Test API
+  path: /api/test
+  method: GET
+  parameters:
+    - name: name
+      in: query
+      type: string
+      required: false
+  source:
+    type: jdbc
+    datasource: dataSource
+    query: SELECT * FROM test WHERE name = :name
+  response:
+    type: list
+    fields:
+      - name: id
+        scope: basic
+      - name: name
+        scope: basic
+  sla:
+    timeout: 3000

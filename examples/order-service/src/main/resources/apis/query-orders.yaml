@@ -1,0 +1,42 @@
+api:
+  id: query-orders
+  name: Query Orders
+  path: /v1/orders
+  method: GET
+  parameters:
+    - name: status
+      in: query
+      type: string
+      required: false
+      description: Filter by order status
+      enum:
+        - ACTIVE
+        - PENDING
+        - CANCELLED
+    - name: page
+      in: query
+      type: integer
+      required: false
+    - name: size
+      in: query
+      type: integer
+      required: false
+  source:
+    type: jdbc
+    datasource: dataSource
+    query: "SELECT order_no, status, amount, customer_name FROM orders WHERE 1=1 ${status: AND status = :status}"
+  response:
+    type: page
+    fields:
+      - name: orderNo
+        scope: basic
+      - name: status
+        scope: basic
+      - name: amount
+        scope: basic
+      - name: customerName
+        scope: detail
+  scopes:
+    order.read: basic
+  sla:
+    timeout: 3000

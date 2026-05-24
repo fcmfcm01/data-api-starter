@@ -1,0 +1,22 @@
+api:
+  id: create-order
+  name: Create Order
+  path: /v1/orders
+  method: POST
+  parameters:
+    - name: orderNo
+      in: body
+      type: string
+      required: true
+    - name: status
+      in: body
+      type: string
+      required: true
+  source:
+    type: jdbc
+    datasource: dataSource
+    query: "INSERT INTO orders (order_no, status) VALUES (:orderNo, :status)"
+  response:
+    type: single
+  sla:
+    timeout: 5000

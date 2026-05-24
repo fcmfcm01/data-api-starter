@@ -1,0 +1,64 @@
+{
+  "properties": [
+    {
+      "name": "data-api.apis-path",
+      "type": "java.lang.String",
+      "defaultValue": "classpath:apis/",
+      "description": "Classpath path for YAML API definition files. Supports recursive scanning of subdirectories."
+    },
+    {
+      "name": "data-api.global-timeout",
+      "type": "java.lang.Integer",
+      "defaultValue": 5000,
+      "description": "Global query timeout in milliseconds. Overridden by per-API sla.timeout in YAML definitions."
+    },
+    {
+      "name": "data-api.capabilities-enabled",
+      "type": "java.lang.Boolean",
+      "defaultValue": true,
+      "description": "Whether to expose the /capabilities endpoint listing all registered APIs."
+    },
+    {
+      "name": "data-api.scope-mapping",
+      "type": "java.lang.String",
+      "defaultValue": "",
+      "description": "Maps caller identities to scope tiers. Format: 'callerId:scope1+scope2+...,callerId2:scope3'. Used by ConfigScopeResolver."
+    },
+    {
+      "name": "data-api.auth-type",
+      "type": "java.lang.String",
+      "defaultValue": "none",
+      "description": "Authentication mode: 'none' (trust all, read X-Caller-Id header), 'jwt' (HMAC256 Bearer tokens), or 'apikey' (X-API-Key header)."
+    },
+    {
+      "name": "data-api.auth.strict-scopes",
+      "type": "java.lang.Boolean",
+      "defaultValue": false,
+      "description": "When true, requests without a matching scope return empty rows instead of all non-sensitive fields."
+    },
+    {
+      "name": "data-api.jwt-secret",
+      "type": "java.lang.String",
+      "defaultValue": "",
+      "description": "HMAC256 secret for JWT verification. Required when auth-type is 'jwt'."
+    },
+    {
+      "name": "data-api.api-keys",
+      "type": "java.lang.String",
+      "defaultValue": "",
+      "description": "Comma-separated list of valid API keys. Required when auth-type is 'apikey'. Keys are matched against the X-API-Key header."
+    },
+    {
+      "name": "data-api.rate-limit-enabled",
+      "type": "java.lang.Boolean",
+      "defaultValue": true,
+      "description": "Whether to enforce per-API, per-caller rate limiting using a token bucket algorithm."
+    },
+    {
+      "name": "data-api.jdbc.fetch-size",
+      "type": "java.lang.Integer",
+      "defaultValue": 100,
+      "description": "JDBC statement fetch size for query result streaming. Set to 0 to use the driver default."
+    }
+  ]
+}

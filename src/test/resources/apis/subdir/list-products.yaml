@@ -1,0 +1,19 @@
+api:
+  id: list-products
+  name: List Products
+  path: /v1/products
+  method: GET
+  parameters: []
+  source:
+    type: jdbc
+    datasource: dataSource
+    query: "SELECT id, name, price FROM products"
+  response:
+    type: list
+    fields:
+      - name: id
+        scope: basic
+      - name: name
+        scope: basic
+      - name: price
+        scope: basic
